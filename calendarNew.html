@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 10px;
+        }
+
+        #calendarContainer {
+            width: 800px;
+            padding: 20px;
+        }
+
+        #infoContainer {
+            width: calc(100% - 800px);
+            padding: 20px;
+            border-left: 1px solid #ccc;
+        }
+
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            margin-bottom: 10px;
+        }
+
+        .calendar div {
+            padding: 5px;
+            border: 1px solid #ccc;
+            text-align: center;
+            cursor: pointer;
+            width:20px;
+        }
+
+        /*.calendar div:hover {
+            background-color: #f0f0f0;
+        }*/
+
+        .highlighted-lg {
+            background-color: lightgreen; /* Highlight background color */
+        }
+        .highlighted-g {
+            background-color: lightgray; /* Highlight background color */
+        }
+
+        .highlighted-remarks {
+            color: red; /* Change font color for remarks */
+            font-weight: bold;
+        }
+
+        .month {
+            margin-top: 15px;
+            display: inline-block;
+            width: 30%; /* Adjust width for 3 columns */
+        }
+
+        .month-title {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .summary {
+            margin-top: 100px;
+        }
+
+        h1, h2 {
+            margin: 0;
+        }
+
+        .month-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .input-group {
+            margin-top: 10px;
+        }
+
+        .remove-button {
+            color: red;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .no-print {
+            color:inherit
+        }
+
+        .printOnly {
+                display: none;
+            }
+        @media print {
+            .no-print {
+                display: none;
+            }
+            .printOnly {
+                display: block;
+            }
+            
+        }
+    </style>
+    <title>Yearly Calendar</title>
+</head>
+<body>
+
+    <div id="calendarContainer">
+        <h1 class="no-print">Select Year: <input type="number" id="yearInput" value="2025" min="1900" max="2100" onchange="document.getElementById('yearTitle').innerText=this.value"/></h1>
+        <div class="printOnly" style="text-align: center;
+        font-size: 25px;
+        font-weight: bold;
+        font-family: verdana;" id="yearTitle">2025</div>
+        <div id="calendarGrid"></div>
+        <div style="display: block; text-align: center;"><div class="highlighted-lg" style="display: inline-block;width: 20px;">&nbsp;</div> Term Break<div class="highlighted-g" style="display: inline-block;width: 20px;margin-left: 150px;">&nbsp;</div> Holiday&nbsp;&nbsp;&nbsp;</div>
+    </div>
+
+    <div id="infoContainer" class="no-print">
+        <h2>Add Remarks</h2>
+        <div class="input-group">
+            <label for="dateInput">Date (YYYY-MM-DD):</label>
+            <input type="date" id="dateInput" />
+        </div>
+        <div class="input-group">
+            <label for="remarksInput">Remarks:</label>
+            <input type="text" id="remarksInput" />
+        </div>
+        <button id="addRemarkButton">Add Remark</button>
+        <h2>Remarks List</h2>
+        <ul id="remarksList"></ul>
+		<div class="summary" id="summary">
+            <table id="summaryTable">
+            </table>
+        </div>
+		<div style="margin-top:30px">
+        <button id="saveButton">Save Data</button>
+        <input type="file" id="loadFile" style="display: none;" />
+        <button id="loadButton">Load Data</button>
+		</div>
+    </div>
+
+    <script>
+        const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        let highlightedDays = { Sun: {h:0, u:0}, Mon: {h:0, u:0}, Tue: {h:0, u:0}, Wed: {h:0, u:0}, Thu: {h:0, u:0}, Fri: {h:0, u:0}, Sat: {h:0, u:0} };
+        let highlightedDates = new Set(); // Store highlighted dates
+        highlightedDates.lg= new Set();
+        highlightedDates.g= new Set();
+        let remarks = {}; // Store remarks with date as key
+        let selectedYear = new Date().getFullYear();
+
+        function generateCalendar(year) {
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = ''; // Clear existing calendar
+            highlightedDays = { Sun: {h:0, u:0}, Mon: {h:0, u:0}, Tue: {h:0, u:0}, Wed: {h:0, u:0}, Thu: {h:0, u:0}, Fri: {h:0, u:0}, Sat: {h:0, u:0} };
+
+            const monthsInRow = 3; // 3 months per row
+            const monthRows = 4; // 4 rows
+
+            for (let row = 0; row < monthRows; row++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.classList.add('month-row');
+
+                for (let month = 0; month < monthsInRow; month++) {
+                    const monthIndex = row * monthsInRow + month;
+                    if (monthIndex >= 12) break; // Break if there are no more months
+
+                    const monthDiv = document.createElement('div');
+                    monthDiv.classList.add('month');
+
+                    const monthName = new Date(year, monthIndex).toLocaleString('default', { month: 'long' });
+                    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate(); // Get number of days in the month
+
+                    monthDiv.innerHTML = `<div class="month-title">${monthName}</div>`;
+                    const calendarDiv = document.createElement('div');
+                    calendarDiv.classList.add('calendar');
+
+                    // Add weekday headers
+                    for (let i = 0; i < weekdays.length; i++) {
+                        const header = document.createElement('div');
+                        header.style.fontWeight = 'bold';
+                        header.textContent = weekdays[i];
+                        calendarDiv.appendChild(header);
+                    }
+
+                    // Add blank spaces for days before the first day of the month
+                    const firstDayOfMonth = new Date(year, monthIndex, 1).getDay();
+                    for (let i = 0; i < firstDayOfMonth; i++) {
+                        const emptyCell = document.createElement('div');
+                        calendarDiv.appendChild(emptyCell);
+                    }
+
+                    // Add days of the month
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const dayDiv = document.createElement('div');
+                        dayDiv.textContent = day;
+
+                        dayDiv.addEventListener('click', function () {
+                            toggleHighlight(dayDiv, year, monthIndex, day);
+                        });
+
+                        // Highlight if the date has remarks
+                        const dateKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        if (remarks[dateKey]) {
+                            dayDiv.classList.add('highlighted-remarks');
+                        }
+
+                        // Highlight if the date is in the highlighted dates set
+                        if (highlightedDates.lg.has(dateKey)) {
+                            dayDiv.classList.add('highlighted-lg');
+                        }
+                        if (highlightedDates.g.has(dateKey)) {
+                            dayDiv.classList.add('highlighted-g');
+                        }
+                        dayDiv.classList.add('dateDiv');
+                        dayDiv.setAttribute('date',dateKey);
+                            
+                        calendarDiv.appendChild(dayDiv);
+                    }
+
+                    monthDiv.appendChild(calendarDiv);
+                    rowDiv.appendChild(monthDiv);
+                }
+
+                grid.appendChild(rowDiv);
+            }
+
+            updateSummary();
+            updateDateInput(year); // Update date input restrictions
+        }
+
+        function toggleHighlight(dayDiv, year, month, day) {
+            const date = new Date(year, month, day);
+            const dayOfWeek = weekdays[date.getDay()];
+            const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+            if (dayDiv.classList.contains('highlighted-lg')) {
+                dayDiv.classList.remove('highlighted-lg');
+                dayDiv.classList.add('highlighted-g');
+                //highlightedDays[dayOfWeek]--;
+                //highlightedDates.delete(dateKey); // Remove date from highlighted set
+            } else if (dayDiv.classList.contains('highlighted-g')) {
+                dayDiv.classList.remove('highlighted-g');
+                //dayDiv.classList.add('highlighted-g');
+                //highlightedDays[dayOfWeek]--;
+                highlightedDates.g.delete(dateKey); // Remove date from highlighted set
+            } else {
+                dayDiv.classList.add('highlighted-lg');
+                //highlightedDays[dayOfWeek]++;
+                highlightedDates.lg.add(dateKey); // Add date to highlighted set
+            }
+
+            updateSummary();
+        }
+
+        function updateSummary() {
+            getHighlightedDays();
+            const summaryDiv = document.getElementById('summary');
+            summaryDiv.innerHTML = '<h2>Highlighted Days Summary:</h2>';
+            
+            // Create a table element
+            const table = document.createElement('table');
+            table.style.border = '1px solid black';
+            table.style.borderCollapse = 'collapse';
+
+            // Create table headers
+            const headerRow = table.insertRow();
+            const dayHeader = headerRow.insertCell();
+            dayHeader.textContent = 'Day';
+            dayHeader.style.border = '1px solid black';
+            const hHeader = headerRow.insertCell();
+            hHeader.textContent = 'Highlighted';
+            hHeader.style.border = '1px solid black';
+            const uHeader = headerRow.insertCell();
+            uHeader.textContent = 'Normal';
+            uHeader.style.border = '1px solid black';
+
+            // Loop through the highlightedDays object
+            for (const day in highlightedDays) {
+                if (highlightedDays.hasOwnProperty(day)) {
+                    const row = table.insertRow();
+
+                    // Create and insert the day (key)
+                    const dayCell = row.insertCell();
+                    dayCell.textContent = day;
+                    dayCell.style.border = '1px solid black';
+
+                    // Insert the value of h
+                    const hCell = row.insertCell();
+                    hCell.textContent = highlightedDays[day].h;
+                    hCell.style.border = '1px solid black';
+
+                    // Insert the value of u
+                    const uCell = row.insertCell();
+                    uCell.textContent = highlightedDays[day].u;
+                    uCell.style.border = '1px solid black';
+                }
+            }
+
+            // Append the table to the body or any other container
+            summaryDiv.appendChild(table);
+
+
+        }
+        function getHighlightedDays() {
+            const dateDivs = document.querySelectorAll('.dateDiv');
+            highlightedDays = { Sun: {h:0, u:0}, Mon: {h:0, u:0}, Tue: {h:0, u:0}, Wed: {h:0, u:0}, Thu: {h:0, u:0}, Fri: {h:0, u:0}, Sat: {h:0, u:0} };
+
+            dateDivs.forEach(div => {
+            const dateStr = div.getAttribute('date');
+            if (dateStr) {
+                const date = new Date(dateStr);
+                    if (!isNaN(date)) {
+                        const dayOfWeek = weekdays[date.getDay()]; // Sunday is 0, Monday is 1, ..., Saturday is 6
+                        if (div.classList.contains('highlighted-lg') || div.classList.contains('highlighted-g')) {
+                            highlightedDays[dayOfWeek].h++;
+                        }else{
+                            highlightedDays[dayOfWeek].u++;
+                        }
+                    }else{
+    
+                    }
+                }
+            });
+
+            return highlightedDays;
+        }
+        function addRemark() {
+            const dateInput = document.getElementById('dateInput');
+            const remarksInput = document.getElementById('remarksInput');
+            const dateValue = dateInput.value;
+            const remarksValue = remarksInput.value;
+
+            if (dateValue && remarksValue) {
+                remarks[dateValue] = remarksValue; // Store the remark with the date as key
+                //highlightedDates.add(dateValue); // Add date to highlighted set
+                updateRemarksList();
+                generateCalendar(new Date(dateValue).getFullYear()); // Regenerate calendar
+                dateInput.value = ''; // Clear input
+                remarksInput.value = ''; // Clear input
+            }
+        }
+
+        function updateRemarksList() {
+            const remarksList = document.getElementById('remarksList');
+            remarksList.innerHTML = ''; // Clear existing list
+
+            for (const [date, remark] of Object.entries(remarks)) {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${date}: ${remark}`;
+                
+                // Create remove button
+                const removeButton = document.createElement('span');
+                removeButton.textContent = 'Remove';
+                removeButton.classList.add('remove-button');
+                removeButton.addEventListener('click', function () {
+                    delete remarks[date]; // Remove the remark
+                    //highlightedDates.delete(date); // Remove date from highlighted set
+                    generateCalendar(new Date(date).getFullYear()); // Regenerate calendar
+                    updateRemarksList(); // Update remarks list
+                });
+
+                listItem.appendChild(removeButton);
+                remarksList.appendChild(listItem);
+            }
+        }
+
+        function updateDateInput(year) {
+            const dateInput = document.getElementById('dateInput');
+            const minDate = `${year}-01-01`;
+            const maxDate = `${year}-12-31`;
+            dateInput.setAttribute('min', minDate);
+            dateInput.setAttribute('max', maxDate);
+        }
+
+        // Save data to a file
+        function saveData() {
+            const data = {
+                year: selectedYear,
+                highlightedDays: highlightedDays,
+                highlightedDates:{
+                        lg: Array.from(highlightedDates.lg),
+                        g: Array.from(highlightedDates.g),
+                    },
+                remarks: remarks
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'calendar-data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+		// Load data from a file
+		function loadData(event) {
+			const file = event.target.files[0];
+			if (file) {
+				const reader = new FileReader();
+				reader.onload = function (e) {
+					const data = JSON.parse(e.target.result);
+					selectedYear = data.year;
+					highlightedDays = data.highlightedDays;
+                    
+                    highlightedDates = new Set(); // Create a new Set object
+
+                    // Restore the lg and g properties as Sets
+                    highlightedDates.lg = new Set(data.highlightedDates.lg);
+                    highlightedDates.g = new Set(data.highlightedDates.g);
+
+					remarks = data.remarks;
+                    console.log(selectedYear);
+                    document.getElementById('yearTitle').innerText=selectedYear;
+                    document.getElementById('yearInput').value=selectedYear;
+					generateCalendar(selectedYear); // Regenerate calendar with loaded data
+					updateRemarksList(); // Update remarks list
+					updateSummary(); // Update summary after loading data
+				};
+				reader.readAsText(file);
+			}
+            event.target.value = ''; 
+		}
+
+
+
+        // Event listeners
+        document.getElementById('yearInput').addEventListener('input', function () {
+            selectedYear = parseInt(this.value);
+            generateCalendar(selectedYear);
+        });
+
+        document.getElementById('addRemarkButton').addEventListener('click', addRemark);
+        document.getElementById('saveButton').addEventListener('click', saveData);
+        document.getElementById('loadFile').addEventListener('change', loadData);
+        document.getElementById('loadButton').addEventListener('click', function () {
+            document.getElementById('loadFile').click(); // Trigger file input click
+        });
+
+        generateCalendar(selectedYear); // Initialize with the current year
+    </script>
+
+</body>
+</html>
