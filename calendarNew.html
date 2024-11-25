@@ -118,11 +118,11 @@
 <body>
 
     <div id="calendarContainer">
-        <h1 class="no-print">Select Year: <input type="number" id="yearInput" value="2025" min="1900" max="2100" onchange="document.getElementById('yearTitle').innerText=this.value"/></h1>
+        <h1 class="no-print">Select Year: <input type="number" id="yearInput" value="" min="1900" max="2100" onchange="document.getElementById('yearTitle').innerText=this.value"/></h1>
         <div class="printOnly" style="text-align: center;
         font-size: 25px;
         font-weight: bold;
-        font-family: verdana;" id="yearTitle">2025</div>
+        font-family: verdana;" id="yearTitle"></div>
         <div id="calendarGrid"></div>
         <div style="display: block; text-align: center;"><div class="highlighted-lg" style="display: inline-block;width: 20px;">&nbsp;</div> Term Break<div class="highlighted-g" style="display: inline-block;width: 20px;margin-left: 150px;">&nbsp;</div> Holiday&nbsp;&nbsp;&nbsp;</div>
     </div>
@@ -158,7 +158,10 @@
         highlightedDates.lg= new Set();
         highlightedDates.g= new Set();
         let remarks = {}; // Store remarks with date as key
-        let selectedYear = new Date().getFullYear();
+        let selectedYear = new Date().getFullYear()+1;
+        document.getElementById('yearInput').value=selectedYear;
+        document.getElementById('yearTitle').value=selectedYear;
+
 
         function generateCalendar(year) {
             const grid = document.getElementById('calendarGrid');
@@ -250,6 +253,8 @@
                 dayDiv.classList.add('highlighted-g');
                 //highlightedDays[dayOfWeek]--;
                 //highlightedDates.delete(dateKey); // Remove date from highlighted set
+                highlightedDates.lg.delete(dateKey); // Remove date from highlighted set
+                highlightedDates.g.add(dateKey); // Remove date from highlighted set
             } else if (dayDiv.classList.contains('highlighted-g')) {
                 dayDiv.classList.remove('highlighted-g');
                 //dayDiv.classList.add('highlighted-g');
