@@ -29,11 +29,12 @@
         }
 
         .calendar div {
-            padding: 5px;
-            border: 1px solid #ccc;
+            padding: 4px;
+            border: 2px solid #bbb;
             text-align: center;
             cursor: pointer;
             width:20px;
+            font-weight: bolder;
         }
 
         /*.calendar div:hover {
@@ -53,15 +54,17 @@
         }
 
         .month {
-            margin-top: 15px;
+            margin-top: 10px;
             display: inline-block;
             width: 30%; /* Adjust width for 3 columns */
         }
 
         .month-title {
             text-align: center;
-            font-weight: bold;
-            margin: 10px 0;
+            font-weight: bolder;
+            font-family: cursive;
+            font-size: 14px;
+            margin: 9px 0;
         }
 
         .summary {
@@ -160,7 +163,7 @@
         let remarks = {}; // Store remarks with date as key
         let selectedYear = new Date().getFullYear()+1;
         document.getElementById('yearInput').value=selectedYear;
-        document.getElementById('yearTitle').value=selectedYear;
+        document.getElementById('yearTitle').innerText=selectedYear;
 
 
         function generateCalendar(year) {
